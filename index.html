@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scanner de Mídias Ativas – eRetail (v5)</title>
+  <style>
+    :root{
+      --green:#008969; --bg:#f6f7f8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --red:#e5264b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:var(--ink)}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px 40px}
+    h1{margin:0 0 6px;font-size:22px}
+    .sub{margin:0;color:var(--muted)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.05);padding:16px;margin:12px 0}
+    label{display:block;font-size:12px;color:#374151;margin:6px 0}
+    input,textarea,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px}
+    textarea{resize:vertical}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    button,.btn{appearance:none;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;font-weight:700}
+    .primary{background:var(--green);color:#fff}
+    .ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+    .danger{background:var(--red);color:#fff}
+    .row{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+    @media(max-width:980px){.row{grid-template-columns:1fr}}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;font-size:14px;vertical-align:top}
+    th{background:#fafafa; position:sticky; top:0; z-index:1}
+    .ok{color:#0a8c4a;font-weight:700}
+    .no{color:#a30d2d;font-weight:700}
+    .pill{display:inline-block;font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:#f8fafc}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .muted{color:var(--muted);font-size:12px}
+    .results-header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .thumb{width:150px;height:84px;background:#fafafa;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .thumb img{width:100%;height:100%;object-fit:contain;display:block}
+    .expander{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:10px;margin-top:8px}
+    .expander .big{width:100%;max-height:380px;background:#fafafa;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .expander img{width:100%;height:100%;object-fit:contain;display:block}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:980px){.grid2{grid-template-columns:1fr}}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:12px; background:#f3f4f6; border:1px solid var(--line); padding:2px 6px; border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Scanner de Mídias Ativas – eRetail (v5)</h1>
+    <p class="sub">Responsivo, com filtro por marca, pré-visualização inline e opção de download. Use URL ou HTML bruto (fallback).</p>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="url">Site do cliente</label>
+          <input id="url" type="url" placeholder="https://www.prezunic.com.br/" />
+          <div class="btns">
+            <button class="primary" id="scanBtn">Verificar (via proxy)</button>
+            <button class="ghost" id="refazerBtn">Refazer varredura</button>
+            <button class="ghost" id="dlCsvBtn">Exportar CSV</button>
+          </div>
+        </div>
+        <div>
+          <label for="brandFilter">Filtrar por marca</label>
+          <select id="brandFilter"><option value="">Todas as marcas</option></select>
+          <div class="muted" style="margin-top:6px">Dica: salve o HTML bruto se houver bloqueio/CORS.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="htmlRaw">HTML bruto (fallback quando houver bloqueio/CORS)</label>
+      <textarea id="htmlRaw" rows="6" placeholder="Cole aqui o HTML da página…"></textarea>
+      <div class="btns">
+        <button class="primary" id="runHtmlBtn">Executar com HTML</button>
+        <span class="muted">Atalho: <span class="kbd">Ctrl</span> + <span class="kbd">U</span> na página → copie tudo → cole aqui.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="results-header">
+        <strong>Ocorrências encontradas</strong>
+        <div class="toolbar">
+          <button class="ghost" id="verResultadoBtn">Ver resultado</button>
+          <span class="pill" id="countPill">0 itens</span>
+        </div>
+      </div>
+      <div id="resultsWrap" style="overflow:auto; max-height: 540px; margin-top:8px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px">Marca</th>
+              <th style="width:200px">Mídia (renderizada)</th>
+              <th>URL / Trecho</th>
+              <th style="width:180px">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="results"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>Resumo</strong>
+        <table><tbody id="summary"></tbody></table>
+      </div>
+      <div class="card">
+        <strong>Galeria rápida</strong>
+        <div id="gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// —— Portfólio
+const BRANDS = [
+  { name:'Heineken', patterns:['heineken','hnk'] },
+  { name:'Heineken 0.0', patterns:['heineken\\\\s*0\\\\.0','0\\\\.0','zero\\\\s*alco(o|ó)l?'] },
+  { name:'Amstel', patterns:['amstel(?!\\\\s*ultra)'] },
+  { name:'Amstel Ultra', patterns:['amstel\\\\s*ultra'] },
+  { name:'Sol', patterns:['\\\\bsol\\\\b','cerveja\\\\s*sol'] },
+  { name:'Sol Zero', patterns:['sol\\\\s*zero','sol\\\\s*0\\\\.0'] },
+  { name:'Blue Moon', patterns:['blue\\\\s*moon','bluemoon'] },
+  { name:'Lagunitas IPA', patterns:['lagunitas'] },
+  { name:'Baden Baden', patterns:['baden\\\\s*baden','baden'] },
+  { name:'Eisenbahn', patterns:['eisenbahn'] },
+  { name:'Devassa', patterns:['devassa'] },
+  { name:'Kaiser', patterns:['kaiser'] },
+  { name:'Schin', patterns:['\\\\bschin\\\\b','nova\\\\s*schin'] },
+  { name:'Praya', patterns:['praya'] },
+  { name:'Itubaína', patterns:['ituba(i|í)na'] },
+  { name:'FYs', patterns:['\\\\bfys\\\\b'] },
+  { name:'Água Schin', patterns:['agua\\\\s*schin','água\\\\s*schin'] }
+];
+
+// —— Elements
+const urlInput = document.getElementById('url');
+const htmlRaw = document.getElementById('htmlRaw');
+const scanBtn = document.getElementById('scanBtn');
+const refazerBtn = document.getElementById('refazerBtn');
+const runHtmlBtn = document.getElementById('runHtmlBtn');
+const dlCsvBtn = document.getElementById('dlCsvBtn');
+const brandFilter = document.getElementById('brandFilter');
+
+const summaryTB = document.getElementById('summary');
+const resultsTB = document.getElementById('results');
+const gallery = document.getElementById('gallery');
+const countPill = document.getElementById('countPill');
+const verResultadoBtn = document.getElementById('verResultadoBtn');
+
+// —— State
+let lastResults = []; // for CSV
+let assets = [];      // {brand, src, alt, url, snippet}
+let detectedAt = '';
+
+// —— Utils
+const escCSV = v => '"' + String(v).replace(/"/g,'""') + '"';
+const toCSV = rows => ['URL','Marca','Tipo','Valor'].join(',') + '\\n' + rows.map(r=>[r.url,r.brand,r.type,r.value].map(escCSV).join(',')).join('\\n');
+const sanitize = s => (s||'').replace(/\\s+/g,' ').trim();
+const guessDateFromURL = u => { if(!u) return ''; const m1=u.match(/(20\\d{2})[-_]?([01]?\\d)[-_]?([0-3]?\\d)/); if(m1){return `${m1[1]}-${String(m1[2]).padStart(2,'0')}-${String(m1[3]).padStart(2,'0')}`;} const m2=u.match(/([0-3]?\\d)[-_]([01]?\\d)[-_](20\\d{2})/); if(m2){return `${m2[3]}-${String(m2[2]).padStart(2,'0')}-${String(m2[1]).padStart(2,'0')}`;} return ''; };
+
+function rebuildBrandFilter(){
+  brandFilter.innerHTML = '<option value=\"\">Todas as marcas</option>' + BRANDS.map(b=>`<option value=\"${b.name}\">${b.name}</option>`).join('');
+}
+rebuildBrandFilter();
+
+dlCsvBtn.onclick = () => {
+  if(!lastResults.length){ alert('Nada para exportar'); return }
+  const csv = toCSV(lastResults);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scanner-midias.csv';
+  a.click();
+};
+
+refazerBtn.onclick = () => {
+  resultsTB.innerHTML=''; summaryTB.innerHTML=''; gallery.innerHTML=''; countPill.textContent='0 itens';
+  assets=[]; lastResults=[];
+};
+
+verResultadoBtn.onclick = () => {
+  document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
+};
+
+function renderAll(){
+  // Summary
+  summaryTB.innerHTML='';
+  for(const b of BRANDS){
+    const present = assets.some(a => a.brand === b.name);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="width:40%">${b.name}</td><td>${present?'<span class="ok">ATIVO</span>':'<span class="no">NÃO DETECTADO</span>'}</td><td></td>`;
+    summaryTB.appendChild(tr);
+  }
+
+  // Results table (inline preview cell + expandable large preview)
+  const brandSel = brandFilter.value;
+  resultsTB.innerHTML='';
+  const seen = new Set();
+  let count = 0;
+  for(const a of assets){
+    if(brandSel && a.brand !== brandSel) continue;
+    const key = a.brand+'|'+a.src;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    count++;
+
+    const tr = document.createElement('tr');
+    const file = a.src.split('/').pop();
+    const dt = guessDateFromURL(a.src);
+    tr.innerHTML = `
+      <td><strong>${a.brand}</strong><div class="muted">${dt? 'Possível data: '+dt : ''}</div></td>
+      <td>
+        <div class="thumb"><img src="${a.src}" alt="${a.alt||''}"></div>
+      </td>
+      <td style="word-break:break-all">
+        ${a.src.startsWith('http') ? `<a href="${a.src}" target="_blank" rel="noopener">${file}</a>` : a.snippet || file}
+        ${a.snippet ? `<div class="muted" style="margin-top:6px">${a.snippet}</div>` : ''}
+        <details class="expander"><summary>Pré-visualizar maior</summary>
+          <div class="big"><img src="${a.src}" alt="${a.alt||''}"></div>
+        </details>
+      </td>
+      <td>
+        <div class="toolbar">
+          <a class="btn ghost" href="${a.src}" target="_blank" rel="noopener">Abrir</a>
+          <a class="btn ghost" href="${a.src}" download>Baixar</a>
+        </div>
+      </td>
+    `;
+    resultsTB.appendChild(tr);
+
+    // Gallery quick grid
+    const g = document.createElement('div');
+    g.className = 'thumb';
+    g.innerHTML = `<img src="${a.src}" alt="${a.alt||''}">`;
+    gallery.appendChild(g);
+  }
+  countPill.textContent = count + ' itens';
+}
+
+function parseHTML(html, pageUrl){
+  const text = html.toLowerCase();
+  detectedAt = new Date().toISOString().slice(0,19).replace('T',' ');
+  assets=[]; lastResults=[];
+
+  // Collect <img>
+  const imgRegex = /<img[^>]+>/ig;
+  (html.match(imgRegex)||[]).forEach(tag => {
+    const src = (tag.match(/src=["']([^"']+)["']/i)||['',''])[1];
+    const alt = (tag.match(/alt=["']([^"']+)["']/i)||['',''])[1];
+    for(const b of BRANDS){
+      if(b.patterns.some(p=> new RegExp(p,'i').test(src) || new RegExp(p,'i').test(alt))){
+        assets.push({brand:b.name, src, alt, url: pageUrl});
+        lastResults.push({url:pageUrl, brand:b.name, type:'img', value:src});
+        break;
+      }
+    }
+  });
+
+  // Collect <a href> to image files
+  const aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/ig; let m;
+  while((m = aRegex.exec(html)) !== null){
+    const href = m[1]; const label = sanitize(m[2].replace(/<[^>]+>/g,' '));
+    if(/\.(jpg|jpeg|png|webp|gif|svg)(\?|#|$)/i.test(href)){
+      for(const b of BRANDS){
+        if(b.patterns.some(p=> new RegExp(p,'i').test(href) || new RegExp(p,'i').test(label))){
+          assets.push({brand:b.name, src:href, alt:label, url: pageUrl});
+          lastResults.push({url:pageUrl, brand:b.name, type:'img', value:href});
+          break;
+        }
+      }
+    }
+  }
+
+  // Textual evidence snippets
+  for(const b of BRANDS){
+    for(const p of b.patterns){
+      const re = new RegExp(p,'i'); const idx = text.search(re);
+      if(idx>=0){
+        const start = Math.max(0, idx-80), end = Math.min(text.length, idx+120);
+        const sn = sanitize(html.slice(start,end).replace(/<[^>]+>/g,' '));
+        lastResults.push({url:pageUrl, brand:b.name, type:'texto', value:sn});
+        break;
+      }
+    }
+  }
+
+  renderAll();
+}
+
+async function fetchViaProxy(url){
+  const u = url.startsWith('http')? url : ('https://'+url);
+  const r = await fetch('https://r.jina.ai/http://' + u.replace(/^https?:\/\//,''));
+  if(!r.ok) throw new Error('Falha no proxy');
+  return await r.text();
+}
+
+scanBtn.onclick = async () => {
+  const pageUrl = urlInput.value.trim();
+  if(!pageUrl){ alert('Insira a URL do cliente'); return }
+  try{
+    const t0 = performance.now();
+    const html = await fetchViaProxy(pageUrl);
+    parseHTML(html, pageUrl);
+    const t1 = performance.now();
+    console.log('Varredura via proxy em', Math.round(t1-t0),'ms');
+  }catch(e){
+    alert('Leitura bloqueada. Cole o HTML bruto e clique em “Executar com HTML”.');
+    console.warn(e);
+  }
+};
+
+runHtmlBtn.onclick = () => {
+  const html = htmlRaw.value.trim();
+  const pageUrl = urlInput.value.trim() || 'HTML colado';
+  if(!html){ alert('Cole o HTML da página primeiro.'); return }
+  const t0 = performance.now();
+  parseHTML(html, pageUrl);
+  const t1 = performance.now();
+  console.log('Varredura com HTML colado em', Math.round(t1-t0),'ms');
+};
+
+// Pré-preencher exemplo
+urlInput.value = 'https://www.prezunic.com.br/';
+</script>
+</body>
+</html>
